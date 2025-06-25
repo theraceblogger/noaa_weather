@@ -1,1 +1,5 @@
-env
+.DS_Store
+.venv
+# weather_station_maps/*
+api_calls.json
+populate_weather_log.json
