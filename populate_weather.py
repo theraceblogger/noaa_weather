@@ -94,10 +94,9 @@ def load_api_limit_list():
             return DAILY_RATE_LIMIT
         
         except:
-            return []
+            pass
     
-    else:
-        return []
+    return []
 
 
 
