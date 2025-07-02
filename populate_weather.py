@@ -14,6 +14,9 @@ from loguru import logger
 
 
 
+
+
+# Set up logging
 def serializer(record):
     subset = {
         "time": record["time"].strftime("%Y-%m-%d %H:%M:%S"),
@@ -23,6 +26,7 @@ def serializer(record):
         "context": record["extra"]
     }
     return json.dumps(subset)
+
 
 def add_serialization(record):
     record["extra"]["json_output"] = serializer(record)
@@ -37,7 +41,11 @@ logger.add(sys.stderr, format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <yell
 script_run_datetime = time.time()
 script_logger = logger.bind(script_run_datetime=script_run_datetime)
 
-# Comment out line 40 when loading cloud db
+
+
+
+
+# Comment out line 50 when loading cloud db
 db = ''
 db = db + 'LOCAL_'
 
@@ -66,7 +74,7 @@ def db_connect():
     try:
         connection = psycopg2.connect(connection_string)
         connection.autocommit = True
-        print('Connection successful')
+        print('Database connection successful')
     
     except:
         sys.exit('Unable to connect to the database')
@@ -155,7 +163,7 @@ def rate_limit_check(url):
         time_diff = now - DAILY_RATE_LIMIT[0]
 
         if time_diff < 86460.0:
-            print(f'10,000 calls per day exceeded - limit reached in {round(time_diff/3600, 2)} hours')
+            print(f'10,000 calls per day limit reached in {round(time_diff/3600, 2)} hours')
 
             save_api_limit_list()
             cursor.close()
@@ -229,7 +237,6 @@ def api_call_generator(station_id, mindate, maxdate):
 
 
     for year in range(num_years):
-        # print(f'Requesting data for station: {station_id} for year: {str(int(start_yr) + year)}')
 
         if num_years == 1:
             url_pre = base_url + datatype + station_id_pre + station_id + start_date_pre + mindate + end_date_pre + maxdate + units + limit + offset_pre
@@ -276,20 +283,22 @@ def get_highest_coverage_station(clusters, stations):
     return points
 
 
-def create_html_stations(station_results, outfile):
+def create_global_map(station_results, outfile):
     f = folium.Figure()
     m = folium.Map(location=(30, 10)\
                 , zoom_start=3\
                 , min_zoom=3\
                 , tiles="cartodb positron"\
                 , max_bounds=True).add_to(f)
+    
     for row in station_results:
         folium.CircleMarker([row[1], row[2]], radius=1, color='purple', fill=True, fill_color='purple').add_to(m)
     
-    if not os.path.exists('weather_station_maps'):
-        os.system('mkdir weather_station_maps')
-    m.save(f'weather_station_maps/{outfile}.html')
-    print(f'Map saved at: weather_station_maps/{outfile}.html')
+    if not os.path.exists('weather_maps'):
+        os.system('mkdir weather_maps')
+    
+    m.save(f'weather_maps/{outfile}.html')
+    print(f'Map saved at: weather_maps/{outfile}.html')
 
     return
 
@@ -306,10 +315,11 @@ def create_usa_map(station_results, outfile):
     for row in station_results:
         folium.CircleMarker([row[1], row[2]], radius=1, color='purple', fill=True, fill_color='purple').add_to(m)
     
-    if not os.path.exists('weather_station_maps'):
-        os.system('mkdir weather_station_maps')
-    m.save(f'weather_station_maps/{outfile}.html')
-    print(f'Map saved at: weather_station_maps/{outfile}.html')
+    if not os.path.exists('weather_maps'):
+        os.system('mkdir weather_maps')
+    
+    m.save(f'weather_maps/{outfile}.html')
+    print(f'Map saved at: weather_maps/{outfile}.html')
 
     return
 
@@ -343,7 +353,7 @@ def get_log_rerun_stations():
 def populate_weather(filtered_stations, mindate, maxdate, single_station_load=True, rerun_fails=False): 
     if rerun_fails:
         reruns = get_log_rerun_stations()
-    
+        
     else:
         reruns = []
 
@@ -352,6 +362,7 @@ def populate_weather(filtered_stations, mindate, maxdate, single_station_load=Tr
     stations_loaded = cursor.fetchall()
 
     stations_loaded = [result[0] for result in stations_loaded]
+    print(f'Number of stations to load: {len(filtered_stations) - len(stations_loaded) + len(reruns)}')
 
     for station_result in filtered_stations:
         station_id = station_result[0]
@@ -367,7 +378,6 @@ def populate_weather(filtered_stations, mindate, maxdate, single_station_load=Tr
         api_call_generator(station_id, str(mindate), str(maxdate))
         
         if single_station_load:
-            save_api_limit_list()
             break
     
     return
@@ -387,7 +397,7 @@ def filter_stations(create_station_html=True):
     station_results = cursor.fetchall()
 
     if create_station_html:
-        # create_html_stations(station_results, 'weather_stations_usa_97')
+        # create_global_map(station_results, 'weather_stations_usa_97')
         create_usa_map(station_results, 'weather_stations_usa_97')
 
 
@@ -400,9 +410,7 @@ def filter_stations(create_station_html=True):
     #     df = get_highest_coverage_station(clusters, df)
     
     # filtered_stations = df['id'].to_list()
-    # filtered_results = [x for x in station_results if x[0] in filtered_stations]
-
-    # print(f'Number of stations to load: {len(station_results)}')
+    # station_results = [x for x in station_results if x[0] in filtered_stations]
     
     return station_results
 
@@ -429,18 +437,16 @@ if __name__ == "__main__":
     # resolution is 0 - 9 and refers to the index in this list
     # [5, 25, 50, 75, 100, 150, 200, 300, 400, 500]
     # the list values are the radius in kilometers for the clusters
-    # resolution = 5
+    # this is only used when reducing stations geographically with clustering algorithm in filter_stations()
+    resolution = 5
 
     min_date = datetime.strptime('1950-01-01', '%Y-%m-%d').date()
     max_date = date.today()
 
     
-    # filtered_stations = filter_stations(resolution)
     filtered_stations = filter_stations(create_station_html=False)
-    # filtered_stations = filter_stations()
 
     populate_weather(filtered_stations, min_date, max_date, single_station_load=False)
-    # populate_weather(filtered_stations, min_date, max_date)
 
     save_api_limit_list()
     cursor.close()

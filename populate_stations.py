@@ -33,7 +33,7 @@ def db_connect():
     try:
         connection = psycopg2.connect(connection_string)
         connection.autocommit = True
-        print('Connection successful')
+        print('Database connection successful')
     
     except:
         sys.exit('Unable to connect to the database')
