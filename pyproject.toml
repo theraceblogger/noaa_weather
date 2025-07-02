@@ -1,5 +1,5 @@
 [project]
-name = "climate-change"
+name = "noaa-weather"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -14,5 +14,4 @@ dependencies = [
     "requests>=2.32.3",
     "reverse-geocoder>=1.5.1",
     "scikit-learn>=1.6.1",
-    "sqlalchemy>=2.0.41",
 ]
